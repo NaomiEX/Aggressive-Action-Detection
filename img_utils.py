@@ -38,7 +38,4 @@ def folder_to_imgs(folder_path, img_extension):
 
     # Return an iterator to the images read.
     # TODO Check whether the images yielded are in correct order.
-    return (
-        cv2.imread(filename)
-        for filename in glob.iglob(path)
-    )
+    return map(cv2.imread, glob.iglob(path))
