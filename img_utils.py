@@ -36,17 +36,18 @@ def folder_to_imgs(folder_path, img_extension):
     # the desired type.
     path = os.path.join(folder_path, f"*{img_extension}")
 
+    # glob returns the filenames in arbitrary order, sort
+    # to get the frames in the original order.
     filenames = sorted(glob.glob(path))
 
     # Return an iterator to the images read.
-    # TODO Check whether the images yielded are in correct order.
     return map(cv2.imread, filenames)
 
 
 def imgs_to_vid(filename, dims, fps, images):
     """
     Parameters:
-    filename : The name of the video output, must end with ".mp4".
+    filename : The name of the video output, must ends with ".mp4".
     dims     : A tuple (width, height) specifying the video dimensions.
     fps      : Frames per second.
     images   : An iterator to OpenCV Mat image objects.
