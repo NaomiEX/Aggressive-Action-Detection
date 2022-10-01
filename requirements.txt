@@ -5,4 +5,7 @@ numpy==1.23.3
 opencv-python==4.6.0.66
 pathspec==0.10.1
 platformdirs==2.5.2
+PyQt6==6.3.1
+PyQt6-Qt6==6.3.2
+PyQt6-sip==13.4.0
 tomli==2.0.1
