@@ -141,3 +141,6 @@ model/logs
 
 # params
 model/params
+
+# predictions
+predictions
