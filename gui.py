@@ -1,3 +1,5 @@
+from random import random
+from time import sleep
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -17,7 +19,17 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtGui import QAction, QGuiApplication
 from PyQt6.QtCore import Qt, QUrl
+import cv2
+import os
 import sys
+from math import log10
+import pathlib
+
+from img_utils import stream_to_imgs, folder_to_imgs, imgs_to_vid
+
+
+FRAMES_DIR = os.path.join(".", "frames")
+FILENAME_PAT = os.path.join(FRAMES_DIR, "frame_{:0{}d}.jpg")
 
 
 class MainWindow(QMainWindow):
@@ -51,16 +63,55 @@ class MainWindow(QMainWindow):
         style = self.style()
         openIcon = style.standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton)
         self.openAction = QAction(openIcon, " &Open...", self)
-        self.openAction.triggered.connect(self._import_video)
+        self.openAction.triggered.connect(self._process_video)
         exitIcon = style.standardIcon(QStyle.StandardPixmap.SP_BrowserStop)
         self.exitAction = QAction(exitIcon, " &Exit", self)
         self.exitAction.triggered.connect(MainWindow._exit_app)
-    
-    def _import_video(self):
-        filename, _ = QFileDialog.getOpenFileName(self, "Select video (.mp4)...")
-        # assert filename.endswith((".mp4", ".MP4"))
-        # Insert API calls to the other components below.
-        self.centralWidget.loadVideo(filename)
+
+    def _process_video(self):
+        # Open a stream for reading the input video.
+        vid_in_filename, _ = QFileDialog.getOpenFileName(self, "Select video (.mp4)...")
+        assert vid_in_filename.endswith(
+            (".mp4", ".MP4")
+        ), "Attempt to process a non-supported file."
+        capture = cv2.VideoCapture(vid_in_filename)
+
+        # Retrieve video metadata.
+        frame_count = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        id_length = max(int(log10(frame_count)) + 1, 1)
+        width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        dims = (int(width), int(height))
+        fps = capture.get(cv2.CAP_PROP_FPS)
+
+        # Create a lazy iterator over the images in the input video stream.
+        images = stream_to_imgs(capture)
+
+        # Create an IO wrapper for writing the annotated frames into a video.
+        vid_out_filename = os.path.join(".", f"output_{os.path.basename(vid_in_filename)}.mp4")
+        writer = cv2.VideoWriter(
+            vid_out_filename, cv2.VideoWriter_fourcc(*"mp4v"), fps, dims
+        )
+
+        # Iterate through the unannotated frames.
+        for _id, image in enumerate(images, start=1):
+
+            # annotated_frame = annotated(image)
+
+            # Export the annotated frames to a folder.
+            frame_out_filename = FILENAME_PAT.format(_id, id_length)
+            # cv2.imwrite(frame_out_filename, annotated_frame)
+            cv2.imwrite(frame_out_filename, image)
+
+            # writer.write(annotated_frame)
+            writer.write(image)
+
+        # Clean up to prevent memory leaks.
+        capture.release()
+        writer.release()
+
+        # Play the annotated video.
+        self.centralWidget.loadVideo(vid_out_filename)
 
     @staticmethod
     def _exit_app():
@@ -160,14 +211,12 @@ class TimeDisplay(QLabel):
         super().__init__(*parents)
         start_time = TimeDisplay.timestamp_of(TimeDisplay.START)
         self.setText(start_time)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
-        )
-    
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+
     def updateTime(self, milliseconds):
         timestamp = TimeDisplay.timestamp_of(milliseconds)
         self.setText(timestamp)
-    
+
     @staticmethod
     def timestamp_of(milliseconds):
         seconds = milliseconds // 1000
