@@ -12,7 +12,7 @@ RED = (0, 0, 255)
 THICKNESS = 2
 
 FONT_FACE = cv2.FONT_HERSHEY_SIMPLEX
-FONT_SCALE = 10
+FONT_SCALE = 1
 
 
 def annotated(image):
@@ -21,7 +21,7 @@ def annotated(image):
     OpenCV format.
     """
     # Retrieve model predictions.
-    height, width = image.shape
+    height, width, _ = image.shape
     pil_image = _cv2_to_pil(image)
     preds = predict(model, "cuda:0", pil_image, width, height)
 
@@ -29,8 +29,8 @@ def annotated(image):
 
     # Annotate the image with model predictions.
     for pred in filter(has_interaction, preds):
-        sub_box = pred["sub_box"]
-        obj_box = pred["obj_box"]
+        sub_box = tuple(map(round, pred["sub_box"]))
+        obj_box = tuple(map(round, pred["obj_box"]))
         image = _draw_bbox(image, sub_box, RED, label="HUMAN")
         image = _draw_bbox(image, obj_box, GREEN, label=pred["obj_cat"])
         image = _draw_vector(image, sub_box, obj_box, BLUE, label=pred["verb"])
@@ -95,9 +95,10 @@ def _draw_vector(image, box1, box2, color, label=None):
 
     # Put the label beside the line.
     if label is not None:
+        mx, my = _midpoint(c1, c2)
         image = cv2.putText(
             img=image,
-            org=_midpoint(c1, c2),
+            org=(mx, my - 5),
             text=label,
             fontFace=FONT_FACE,
             fontScale=FONT_SCALE,
@@ -131,7 +132,7 @@ def _midpoint(pt1, pt2):
     """
     x1, y1 = pt1
     x2, y2 = pt2
-    return (x1 + x2) / 2, (y1 + y2) / 2
+    return (x1 + x2) // 2, (y1 + y2) // 2
 
 
 def _cv2_to_pil(image):
@@ -143,3 +144,9 @@ def _cv2_to_pil(image):
     """
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return Image.fromarray(image)
+
+
+if __name__ == "__main__":
+    image = cv2.imread("./frame_1.jpg")
+    image = annotated(image)
+    cv2.imwrite("./frame_1_output.jpg", image)
