@@ -1,5 +1,9 @@
 #!/bin/bash
-python main.py \
+python -m torch.distributed.launch \
+--nproc_per_node 2 \
+--nnodes=1 \
+--use_env main.py \
+--distributed \
 --method vidt \
 --epochs 50 \
 --backbone_name swin_nano \
