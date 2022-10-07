@@ -6,3 +6,4 @@ onnxruntime
 timm
 einops
 loguru
+opencv-python
