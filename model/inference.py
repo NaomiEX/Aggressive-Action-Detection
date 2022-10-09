@@ -229,8 +229,8 @@ def predict(model, device, img, img_w, img_h, filename=None, write_to_file=False
 if __name__ == "__main__":
     checkpoint_path = os.path.join("model", "logs", "surveillance", "run_3", "checkpoint.pth")
     model = load_trained_model(checkpoint_path,"cuda:0", SimArgs())
-    random_img_path = os.path.join("model", "data", "surveillance", "train_2021", "2.jpg")
+    random_img_path = os.path.join("model", "data", "surveillance", "train_2021", "1.jpg")
     img = Image.open(random_img_path).convert('RGB')
     w, h = img.size
-    predict(model, "cuda:0", img, w, h)
+    predict(model, "cuda:0", img, w, h, write_to_file=True)
     
