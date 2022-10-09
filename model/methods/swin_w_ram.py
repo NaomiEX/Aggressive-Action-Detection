@@ -31,6 +31,8 @@ class Mlp(nn.Module):
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        if (self.fc1.in_features != x.shape[-1]):
+            raise ValueError("Expected input features={self.fc1.in_features}, got {x.shape[-1]}")
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
@@ -717,6 +719,11 @@ class PatchEmbed(nn.Module):
 
     def __init__(self, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None, weight_standardization=False):
         super().__init__()
+        if (patch_size <= 0):
+            raise ValueError("patch size must be > 0 but got: {patch_size}")
+        if (embed_dim <= 0):
+            raise ValueError("embed_dim must be > 0 but got: {embed_dim}")
+        
         patch_size = to_2tuple(patch_size)
         self.patch_size = patch_size
 
@@ -737,9 +744,11 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         """Forward function."""
-
         # padding
         _, _, H, W = x.size()
+        if (H <= 0 or W <= 0):
+            raise ValueError(f"Width and Height of x must be > 0 but got width: {W} and height: {H}!")
+        
         if W % self.patch_size[1] != 0:
             x = F.pad(x, (0, self.patch_size[1] - W % self.patch_size[1]))
         if H % self.patch_size[0] != 0:
