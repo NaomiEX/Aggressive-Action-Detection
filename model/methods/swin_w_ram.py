@@ -476,7 +476,7 @@ class PatchMerging(nn.Module):
         dim (int): Number of input channels.
     """
 
-    def __init__(self, dim, expand=True):
+    def __init__(self, dim, norm_layer=nn.LayerNorm, expand=True):
         super().__init__()
         
         self.dim = dim

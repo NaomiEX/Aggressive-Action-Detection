@@ -112,10 +112,55 @@ def test_RAM_patch_inter_cross_attn(typical_x, typical_det_inter_tokens):
     INTER_TOKEN_NUM=300
     inter_tokens = generate_x((B, INTER_TOKEN_NUM, C))
     ram = create_ram(IN_CHANNELS, WINDOW_SIZE, NUM_HEADS, DET_TOKEN_NUM, INTER_TOKEN_NUM)
-    # cross_attn_mask = generate_mask_all1((B, NUM_HEADS, DET_TOKEN_NUM, H * W + DET_TOKEN_NUM))
     inter_cross_attn_mask = generate_mask_all1((B, NUM_HEADS, INTER_TOKEN_NUM, H * W + INTER_TOKEN_NUM))
     x = (typical_x, typical_x)
     patch_out, det_out, inter_out = ram(x, typical_det_inter_tokens, inter_tokens, 
+                                        inter_patch_cross_attn=True, 
+                                        inter_patch_cross_attn_mask=inter_cross_attn_mask)
+    assert list(patch_out.shape)==list(typical_x.shape)
+    assert list(det_out.shape) == list(typical_det_inter_tokens.shape)
+    assert list(inter_out.shape) == list(inter_tokens.shape)
+    
+def test_RAM_patch_det_patch_inter_cross_attn(typical_x, typical_det_inter_tokens):
+    INTER_TOKEN_NUM=300
+    inter_tokens = generate_x((B, INTER_TOKEN_NUM, C))
+    ram = create_ram(IN_CHANNELS, WINDOW_SIZE, NUM_HEADS, DET_TOKEN_NUM, INTER_TOKEN_NUM)
+    cross_attn_mask = generate_mask_all1((B, NUM_HEADS, DET_TOKEN_NUM, H * W + DET_TOKEN_NUM))
+    inter_cross_attn_mask = generate_mask_all1((B, NUM_HEADS, INTER_TOKEN_NUM, H * W + INTER_TOKEN_NUM))
+    x = (typical_x, typical_x)
+    patch_out, det_out, inter_out = ram(x, typical_det_inter_tokens, inter_tokens, 
+                                        cross_attn=True, cross_attn_mask=cross_attn_mask,
+                                        inter_patch_cross_attn=True, 
+                                        inter_patch_cross_attn_mask=inter_cross_attn_mask)
+    assert list(patch_out.shape)==list(typical_x.shape)
+    assert list(det_out.shape) == list(typical_det_inter_tokens.shape)
+    assert list(inter_out.shape) == list(inter_tokens.shape)
+    
+def test_RAM_inter_det_patch_inter_cross_attn(typical_x, typical_det_inter_tokens):
+    INTER_TOKEN_NUM=300
+    inter_tokens = generate_x((B, INTER_TOKEN_NUM, C))
+    ram = create_ram(IN_CHANNELS, WINDOW_SIZE, NUM_HEADS, DET_TOKEN_NUM, INTER_TOKEN_NUM)
+    # cross_attn_mask = generate_mask_all1((B, NUM_HEADS, DET_TOKEN_NUM, H * W + DET_TOKEN_NUM))
+    inter_cross_attn_mask = generate_mask_all1((B, NUM_HEADS, INTER_TOKEN_NUM, H * W + INTER_TOKEN_NUM + DET_TOKEN_NUM))
+    x = (typical_x, typical_x)
+    patch_out, det_out, inter_out = ram(x, typical_det_inter_tokens, inter_tokens, 
+                                        inter_det_cross_attn=True,
+                                        inter_patch_cross_attn=True, 
+                                        inter_patch_cross_attn_mask=inter_cross_attn_mask)
+    assert list(patch_out.shape)==list(typical_x.shape)
+    assert list(det_out.shape) == list(typical_det_inter_tokens.shape)
+    assert list(inter_out.shape) == list(inter_tokens.shape)
+    
+def test_RAM_patch_det_inter_det_patch_inter_cross_attn(typical_x, typical_det_inter_tokens):
+    INTER_TOKEN_NUM=300
+    inter_tokens = generate_x((B, INTER_TOKEN_NUM, C))
+    ram = create_ram(IN_CHANNELS, WINDOW_SIZE, NUM_HEADS, DET_TOKEN_NUM, INTER_TOKEN_NUM)
+    cross_attn_mask = generate_mask_all1((B, NUM_HEADS, DET_TOKEN_NUM, H * W + DET_TOKEN_NUM))
+    inter_cross_attn_mask = generate_mask_all1((B, NUM_HEADS, INTER_TOKEN_NUM, H * W + INTER_TOKEN_NUM+DET_TOKEN_NUM))
+    x = (typical_x, typical_x)
+    patch_out, det_out, inter_out = ram(x, typical_det_inter_tokens, inter_tokens, 
+                                        inter_det_cross_attn=True,
+                                        cross_attn=True, cross_attn_mask=cross_attn_mask,
                                         inter_patch_cross_attn=True, 
                                         inter_patch_cross_attn_mask=inter_cross_attn_mask)
     assert list(patch_out.shape)==list(typical_x.shape)
