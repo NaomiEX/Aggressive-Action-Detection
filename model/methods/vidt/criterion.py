@@ -33,12 +33,12 @@ class SetCriterion(nn.Module):
     """
 
     def __init__(self, num_classes, matcher, weight_dict, losses, focal_alpha=0.25,
-                 # For UQR module for instance segmentation
-                 with_vector=False,
-                 processor_dct=None,
-                 vector_loss_coef=0.7,
-                 no_vector_loss_norm=False,
-                 vector_start_stage=0):
+                    # For UQR module for instance segmentation
+                    with_vector=False,
+                    processor_dct=None,
+                    vector_loss_coef=0.7,
+                    no_vector_loss_norm=False,
+                    vector_start_stage=0):
         """ Create the criterion.
         Parameters:
             num_classes: number of object categories, omitting the special no-object category
