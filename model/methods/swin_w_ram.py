@@ -87,6 +87,8 @@ def window_partition(x, window_size):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
+    if (H//window_size <1 or W//window_size <1):
+        raise ValueError(f"H and W must be >= window_size but window_size={window_size} and H={H}, W={W}")
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     return windows
@@ -103,6 +105,9 @@ def window_reverse(windows, window_size, H, W):
     Returns:
         x: (B, H, W, C)
     """
+    if (windows.shape[1] != window_size or windows.shape[2]!=window_size):
+        raise ValueError(f"second and third dimension of input must match window size," \
+            "instead got input.shape={windows.shape} and window_shape={window_size}")
     B = int(windows.shape[0] / (H * W / window_size / window_size))
     x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
