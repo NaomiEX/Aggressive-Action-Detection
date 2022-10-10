@@ -14,6 +14,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 import numpy as np
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from collections.abc import Iterable
 
 from util.misc import Conv2d
 
@@ -134,9 +135,12 @@ class ReconfiguredAttentionModule(nn.Module):
         proj_drop (float, optional): Dropout ratio of output. Default: 0.0
     """
 
-    def __init__(self, dim, window_size, num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self, dim, window_size, num_heads, 
+                 qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
 
         super().__init__()
+        if (not isinstance(window_size, Iterable)):
+            window_size = to_2tuple(window_size)
         self.dim = dim
         self.window_size = window_size  # Wh, Ww
         self.num_heads = num_heads
@@ -169,8 +173,10 @@ class ReconfiguredAttentionModule(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
 
-    def forward(self, x, det, inter, mask=None, cross_attn=False, inter_det_cross_attn = False, 
-                cross_attn_mask=None, inter_patch_cross_attn=False, inter_patch_cross_attn_mask=None):
+    def forward(self, x, det, inter, mask=None, cross_attn=False, 
+                inter_det_cross_attn = False, 
+                cross_attn_mask=None, inter_patch_cross_attn=False, 
+                inter_patch_cross_attn_mask=None):
         """ Forward function.
         RAM module receives [Patch] and [DET] tokens and returns their calibrated ones
 
@@ -191,7 +197,6 @@ class ReconfiguredAttentionModule(nn.Module):
             patch_x: the calibrated [PATCH] tokens
             det_x: the calibrated [DET] tokens
         """
-
         assert self.window_size[0] == self.window_size[1]
         window_size = self.window_size[0]
         local_map_size = window_size * window_size

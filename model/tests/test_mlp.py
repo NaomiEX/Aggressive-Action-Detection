@@ -2,7 +2,7 @@ import pytest
 from torch import nn
 
 from methods.swin_w_ram import Mlp
-from test_model import generate_x
+from test_helper_fns import generate_x
 
 def test_mlp_dims_larger_hidden_larger_output():
     B=4

@@ -3,7 +3,7 @@ from torch import nn
 from math import ceil
 
 from methods.swin_w_ram import PatchEmbed, PatchMerging
-from test_model import generate_x
+from test_helper_fns import generate_x
 
 
 def create_patch_embed(patch_size, embed_dim, **kwargs):

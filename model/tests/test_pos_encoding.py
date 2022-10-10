@@ -3,7 +3,7 @@ import torch
 import math
 
 from methods.swin_w_ram import masked_sin_pos_encoding
-from test_model import generate_x
+from test_helper_fns import generate_x
 
 @pytest.fixture
 def typical_pat_tokens():

@@ -1,5 +1,5 @@
 import pytest
-from test_model import generate_x
+from test_helper_fns import generate_x
 from methods.swin_w_ram import window_partition, window_reverse
 
 
