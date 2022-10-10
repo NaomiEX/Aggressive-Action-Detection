@@ -464,13 +464,13 @@ class PatchMerging(nn.Module):
 
     Parameters:
         dim (int): Number of input channels.
-        norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
     """
 
-    def __init__(self, dim, norm_layer=nn.LayerNorm, expand=True):
+    def __init__(self, dim, expand=True):
         super().__init__()
+        
         self.dim = dim
-
+        norm_layer = nn.LayerNorm
         # if expand is True, the channel size will be expanded, otherwise, return 256 size of channel
         expand_dim = 2 * dim if expand else 256
         self.reduction = nn.Linear(4 * dim, expand_dim, bias=False)
