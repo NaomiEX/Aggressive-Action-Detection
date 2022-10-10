@@ -53,25 +53,15 @@ class DeformableTransformer(nn.Module):
         self.nhead = nhead
         self.det_token_num = det_token_num
         self.inter_token_num = inter_token_num
-        if single_branch:
-            decoder_layer = DeformableTransformerDecoderLayerSingleBranch(d_model, dim_feedforward,
-                                                            dropout, activation,
-                                                            num_feature_levels, nhead, dec_n_points,
-                                                            drop_path=drop_path, 
-                                                            det_token_num=det_token_num, 
-                                                            inter_token_num=inter_token_num)
-            inter_decoder_layer=None
-            instance_aware_attn=None
-        else:
-            decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
-                                                            dropout, activation,
-                                                            num_feature_levels, nhead, dec_n_points,
-                                                            drop_path=drop_path)
-            inter_decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
-                                                            dropout, activation,
-                                                            num_feature_levels, nhead, dec_n_points,
-                                                            drop_path=drop_path)
-            instance_aware_attn = InteractionLayer(d_model, d_model, dropout) if instance_aware_attn else None
+        decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+                                                        dropout, activation,
+                                                        num_feature_levels, nhead, dec_n_points,
+                                                        drop_path=drop_path)
+        inter_decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
+                                                        dropout, activation,
+                                                        num_feature_levels, nhead, dec_n_points,
+                                                        drop_path=drop_path)
+        instance_aware_attn = InteractionLayer(d_model, d_model, dropout) if instance_aware_attn else None
             
         self.decoder = DeformableTransformerDecoder(decoder_layer, inter_decoder_layer, 
                                                     instance_aware_attn, num_decoder_layers, 
@@ -309,13 +299,13 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         # Multi-scale deformable cross-attention in Eq. (1) in the ViDT paper
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask)
-        
+                                reference_points,
+                                src, src_spatial_shapes, level_start_index, src_padding_mask)
+        print(tgt2)
         if sub_reference_points is not None:
             tgt2_sub = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               sub_reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask)
+                                sub_reference_points,
+                                src, src_spatial_shapes, level_start_index, src_padding_mask)
             tgt2 = tgt2 + tgt2_sub
 
         if self.drop_path is None:
@@ -331,140 +321,6 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
         return tgt
     
-class DeformableTransformerDecoderLayerSingleBranch(nn.Module):
-    """ A decoder layer for combined instance and interaction branch decoder.
-
-    Parameters:
-        d_model: the channel dimension for attention [default=256]
-        d_ffn: the channel dim of point-wise FFNs [default=1024]
-        dropout: the degree of dropout used in FFNs [default=0.1]
-        activation: An activation function to use [default='relu']
-        n_levels: the number of scales for extracted features [default=4]
-        n_heads: the number of heads [default=8]
-        n_points: the number of reference points for deformable attention [default=4]
-        drop_path: the ratio of stochastic depth for decoding layers [default=0.0]
-    """
-
-    def __init__(self, d_model=256, d_ffn=1024,
-                 dropout=0.1, activation="relu",
-                 n_levels=4, n_heads=8, n_points=4, drop_path=0.,
-                 det_token_num=100, inter_token_num=100):
-        super().__init__()
-        
-        self.det_token_num=det_token_num
-        self.inter_token_num=inter_token_num
-
-        # [INTER + DET x PATCH] deformable cross-attention
-        self.cross_attn = MSDeformAttn(d_model, n_levels, n_heads, n_points)
-        self.dropout1 = nn.Dropout(dropout)
-        self.norm1 = nn.LayerNorm(d_model)
-
-        # [DET x DET] self-attention
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.norm2 = nn.LayerNorm(d_model)
-        
-        # [INTER] x [INTER] self-attention
-        self.inter_self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
-        self.dropout2_inter = nn.Dropout(dropout)
-        self.norm2_inter = nn.LayerNorm(d_model)
-        
-
-        # ffn for multi-heaed
-        self.linear1 = nn.Linear(d_model, d_ffn)
-        self.activation = _get_activation_fn(activation)
-        self.dropout3 = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(d_ffn, d_model)
-        self.dropout4 = nn.Dropout(dropout)
-        self.norm3 = nn.LayerNorm(d_model)
-
-        # stochastic depth
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else None
-
-    @staticmethod
-    def with_pos_embed(tensor, pos):
-        return tensor if pos is None else tensor + pos
-
-    def forward_ffn(self, tgt):
-        tgt2 = self.linear2(self.dropout3(self.activation(self.linear1(tgt))))
-        tgt = tgt + self.dropout4(tgt2)
-        tgt = self.norm3(tgt)
-        return tgt
-
-    def forward(self, det_tgt, det_query_pos, inter_tgt, inter_query_pos, 
-                reference_points, src, src_spatial_shapes, level_start_index, 
-                src_padding_mask=None, sub_reference_points=None):
-        # det_tgt, shape: [B, 100, 256]
-        # det_query_pos, shape: [B, 100, 256]
-        # inter_tgt, shape: [B, 100, 256]
-        # inter_query_pos, shape: [B, 100, 256]
-        # reference_points, shape: [B, 100, 4, 4]
-        # src, shape: [B, H/8*W/8 + H/16*W/16 + H/32*W/32 + H/64*W/64]
-        # src_spatial_shapes, shape: [4, 2]
-        # level_start_index, shape: [4]
-        # src_padding_mask, shape: [B, H/8*W/8 + H/16*W/16 + H/32*W/32 + H/64*W/64]
-        # sub_reference_points, shape: [B, 100, 4, 4]
-        # TODO: debug
-
-        # [DET] self-attention
-        q = k = self.with_pos_embed(det_tgt, det_query_pos)
-        det_tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), det_tgt.transpose(0, 1))[0].transpose(0, 1)
-        det_tgt_res = det_tgt + self.dropout2(det_tgt2)
-        det_tgt_res = self.norm2(det_tgt_res) # [B, 100, 256]
-        
-        # [INTER] self-attention
-        q_inter = k_inter = self.with_pos_embed(inter_tgt, inter_query_pos)
-        inter_tgt2 = self.inter_self_attn(q_inter.transpose(0, 1), k_inter.transpose(0, 1), inter_tgt.transpose(0, 1))[0].transpose(0, 1)
-        inter_tgt_res = inter_tgt + self.dropout2_inter(inter_tgt2)
-        inter_tgt_res = self.norm2_inter(inter_tgt_res) # [B, 100, 256]
-        
-        # [DET] concat [INTER]
-        combined_tgt = torch.cat((det_tgt_res, inter_tgt_res), dim=1) # shape: [B, 200, 256]
-        combined_pos = torch.cat((det_query_pos, inter_query_pos), dim=1) # shape: [B, 200, 256]
-        
-        # use the same reference points for both [DET] and [INTER] queries
-        reference_points = reference_points.repeat(1, 2, 1, 1) # shape: [B, 200, 4, 4]
-
-        # Multi-scale deformable cross-attention in Eq. (1) in the ViDT paper
-        tgt2 = self.cross_attn(self.with_pos_embed(combined_tgt, combined_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask) # shape: [B, 200, 256]
-        # FIXME:
-        tgt2_det, tgt2_inter = tgt2[:, :self.det_token_num, :], tgt2[:, self.inter_token_num:, :]
-        if sub_reference_points is not None:
-            sub_reference_points = sub_reference_points.repeat(1, 2, 1, 1) # shape: [B, 200, 4, 4]
-            tgt2_sub = self.cross_attn(self.with_pos_embed(combined_tgt, combined_pos),
-                               sub_reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask) # shape: [B, 200, 256]
-            tgt2_sub_det, tgt2_sub_inter = tgt2_sub[:, :self.det_token_num, :], tgt2_sub[:, self.inter_token_num:, :]
-            # TODO: experiment with other ways of mixing the two references points results
-            # tgt2 = tgt2 + tgt2_sub
-            tgt2_det = tgt2_det + tgt2_sub_det # [B, 100, 256]
-            tgt2_inter = tgt2_inter + tgt2_sub_inter # [B, 100, 256]
-            
-            
-
-        if self.drop_path is None:
-            # combined_tgt = combined_tgt + self.dropout1(tgt2)
-            # combined_tgt = self.norm1(combined_tgt)
-            # # ffn
-            # combined_tgt = self.forward_ffn(combined_tgt)
-            tgt_det = det_tgt_res + self.dropout1(tgt2_det)
-            tgt_inter = inter_tgt_res + self.dropout1(tgt2_inter)
-            tgt_det = self.norm1(tgt_det)
-            tgt_inter = self.norm1(tgt_inter)
-            tgt_det = self.forward_ffn(tgt_det)
-            tgt_inter = self.forward_ffn(tgt_inter)
-            
-        else:
-            raise NotImplementedError()
-            combined_tgt = combined_tgt + self.drop_path(self.dropout1(tgt2))
-            tgt2 = self.linear2(self.dropout3(self.activation(self.linear1(combined_tgt))))
-            combined_tgt = combined_tgt + self.drop_path(self.dropout4(tgt2))
-            combined_tgt = self.norm3(combined_tgt)
-
-        return tgt_det, tgt_inter
-
 
 class DeformableTransformerDecoder(nn.Module):
     """ A Decoder consisting of multiple layers
@@ -476,8 +332,8 @@ class DeformableTransformerDecoder(nn.Module):
     """
 
     def __init__(self, decoder_layer, inter_decoder_layer, 
-                 inter_layer, num_layers, return_intermediate=False,
-                 single_branch=False):
+                    inter_layer, num_layers, return_intermediate=False,
+                    single_branch=False):
         super().__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         if single_branch:
