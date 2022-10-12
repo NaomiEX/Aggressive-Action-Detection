@@ -61,6 +61,7 @@ def output_good():
                                         [0.49, 0.1, 0.28, 0.69]]])
     }
     
+    
 @pytest.fixture
 def output_bad():
     return {
