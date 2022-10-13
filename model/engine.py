@@ -235,7 +235,7 @@ def evaluate(model, criterion, postprocessor, data_loader, device, epoch, args):
     indices = []
 
     # iterate for all eval. examples
-    for samples, targets in metric_logger.log_every(data_loader, 256, header):
+    for samples, targets in metric_logger.log_every(data_loader, 100, header):
         samples = samples.to(device)
         # targets = [{k: (v.to(device) if k not in ['id', 'file_name'] else v) for k, v in t.items()} for t in targets]
 

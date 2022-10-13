@@ -206,6 +206,7 @@ def main(args):
 
     # only evaluation purpose
     if args.eval:
+        print(f"----------Evaluating with data from: {args.test_path}----------")
         test_stats, coco_evaluator = evaluate(model, criterion, postprocessors,
                                               data_loader_val, device, 'pure_eval', args)
 

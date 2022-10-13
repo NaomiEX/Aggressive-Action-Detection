@@ -228,8 +228,8 @@ def build(image_set, args):
     root = Path(args.root_path)
     assert root.exists(), f'provided HOI path {root} does not exist'
     PATHS = {
-        'train': (root / 'train_2021', root / 'train_2021.json'),
-        'val': (root / 'test', root / 'test_anno.json')
+        'train': (Path(args.train_path), Path(args.train_anno_path)),
+        'val': (Path(args.test_path), Path(args.test_anno_path))
     }
     # CORRECT_MAT_PATH = root / 'annotations' / 'corre_hico.npy'
 
