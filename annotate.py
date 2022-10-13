@@ -1,8 +1,20 @@
 import cv2
 from PIL import Image
-
+from pathlib import Path
+import json
 
 __all__ = ["annotate"]
+
+
+BLUE = (255, 0, 0)
+GREEN = (0, 255, 0)
+RED = (0, 0, 255)
+
+THICKNESS = 2
+import cv2
+
+
+__all__ = ("annotated",)
 
 
 BLUE = (255, 0, 0)
@@ -14,31 +26,34 @@ THICKNESS = 2
 FONT_FACE = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE = 1
 
+def annotated(frame, preds):
+    """
+    Given a video frame and HOI model predictions, return the
+    annotated video frame.
 
-def annotated(image):
+    Parameters:
+    frame : A video frame, stored in OpenCV image format.
+    preds : The HOI model predictions for a video frame.
     """
-    Given an OpenCV image, return the annotated image, in
-    OpenCV format.
-    """
-    # Retrieve model predictions.
-    height, width, _ = image.shape
-    pil_image = _cv2_to_pil(image)
-    preds = predict(model, "cuda:0", pil_image, width, height)
+    # If there is no detected aggressive HOI in the frame,
+    # return the frame.
+    if preds is None:
+        return frame
 
     has_interaction = lambda pred: pred["verb"] != "NO_INTERACTION"
 
-    # Annotate the image with model predictions.
+    # Annotate the video frame with model predictions.
     for pred in filter(has_interaction, preds):
         sub_box = tuple(map(round, pred["sub_box"]))
         obj_box = tuple(map(round, pred["obj_box"]))
-        image = _draw_bbox(image, sub_box, RED, label="HUMAN")
-        image = _draw_bbox(image, obj_box, GREEN, label=pred["obj_cat"])
-        image = _draw_vector(image, sub_box, obj_box, BLUE, label=pred["verb"])
+        frame = _draw_bbox(frame, sub_box, RED, label="HUMAN")
+        frame = _draw_bbox(frame, obj_box, GREEN, label=pred["obj_cat"])
+        frame = _draw_vector(frame, sub_box, obj_box, BLUE, label=pred["verb"])
 
-    return image
+    return frame
 
 
-def _draw_bbox(image, box, color, label=None):
+def _draw_bbox(frame, box, color, label=None):
     """
     Draw the bounding box on the OpenCV image, return
     the annotated image.
@@ -56,14 +71,14 @@ def _draw_bbox(image, box, color, label=None):
     x1, y1, x2, y2 = box
 
     # Draw bounding box.
-    image = cv2.rectangle(
-        img=image, pt1=(x1, y1), pt2=(x2, y2), color=color, thickness=THICKNESS
+    frame = cv2.rectangle(
+        img=frame, pt1=(x1, y1), pt2=(x2, y2), color=color, thickness=THICKNESS
     )
 
     # Put label above the bounding box.
     if label is not None:
-        image = cv2.putText(
-            img=image,
+        frame = cv2.putText(
+            img=frame,
             org=(x1, y1 - 10),
             text=label,
             fontFace=FONT_FACE,
@@ -72,10 +87,10 @@ def _draw_bbox(image, box, color, label=None):
             thickness=THICKNESS,
         )
 
-    return image
+    return frame
 
 
-def _draw_vector(image, box1, box2, color, label=None):
+def _draw_vector(frame, box1, box2, color, label=None):
     """
     Draw the interaction vector on the OpenCV image, return
     the annotated image.
@@ -91,13 +106,13 @@ def _draw_vector(image, box1, box2, color, label=None):
     c1, c2 = _center(box1), _center(box2)
 
     # Draw the interaction vector (as a line).
-    image = cv2.line(img=image, pt1=c1, pt2=c2, color=color, thickness=THICKNESS)
+    frame = cv2.line(img=frame, pt1=c1, pt2=c2, color=color, thickness=THICKNESS)
 
     # Put the label beside the line.
     if label is not None:
         mx, my = _midpoint(c1, c2)
-        image = cv2.putText(
-            img=image,
+        frame = cv2.putText(
+            img=frame,
             org=(mx, my - 5),
             text=label,
             fontFace=FONT_FACE,
@@ -106,14 +121,14 @@ def _draw_vector(image, box1, box2, color, label=None):
             thickness=THICKNESS,
         )
 
-    return image
+    return frame
 
 
 def _center(box):
     """
     Return the center point of the box.
 
-    Parameters:
+    Parameter:
     box : Return the center point of the box.
     """
     x1, y1, x2, y2 = box
@@ -124,7 +139,7 @@ def _center(box):
 
 def _midpoint(pt1, pt2):
     """
-    Return the midpoint of two boxes.
+    Return the midpoint of two points.
 
     Parameters:
     pt1 : A point represented as (x1, y1).
@@ -135,18 +150,12 @@ def _midpoint(pt1, pt2):
     return (x1 + x2) // 2, (y1 + y2) // 2
 
 
-def _cv2_to_pil(image):
-    """
-    Convert an OpenCV image to a PIL image.
-
-    Parameter:
-    image : OpenCV image, in BGR format.
-    """
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(image)
-
-
 if __name__ == "__main__":
-    image = cv2.imread("./frame_1.jpg")
-    image = annotated(image)
-    cv2.imwrite("./frame_1_output.jpg", image)
+    # image = cv2.imread("./frame_1.jpg")
+    filename = 6385
+    image = cv2.imread(f"model/data/surveillance/indoors/{filename}.jpg")
+    with open(Path(f"predictions/{filename}.json"), "r") as rf:
+        preds = json.load(rf)
+    image = annotated(image,preds)
+    # image = annotated(image)
+    cv2.imwrite(f"./temp_{filename}_output.jpg", image)

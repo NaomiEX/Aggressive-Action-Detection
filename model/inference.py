@@ -3,6 +3,7 @@ import math
 import time
 import json
 from datetime import datetime
+from pathlib import Path
 
 import torch
 import datasets.transforms as T
@@ -324,9 +325,11 @@ def predict_batch(model, device, imgs, filename=None, write_to_file=False):
     
 
 if __name__ == "__main__":
+    filename = 6385
     checkpoint_path = os.path.join("model", "logs", "surveillance", "run_3", "checkpoint.pth")
     model = load_trained_model(checkpoint_path,"cuda:0", SimArgs())
-    random_img_path = os.path.join("model", "data", "surveillance", "train_2021", "1.jpg")
+    # random_img_path = os.path.join("model", "data", "surveillance", "train_2021", "1.jpg")
+    random_img_path = Path(f"model/data/surveillance/indoors/{filename}.jpg")
     root_path = os.path.join("model", "data", "surveillance", "train_2021")
     random_img_paths = [os.path.join(root_path, "1.jpg"),
                         os.path.join(root_path, "2.jpg"),
@@ -338,6 +341,6 @@ if __name__ == "__main__":
     imgs = [Image.open(p) for p in random_img_paths]
     img = Image.open(random_img_path)
     w, h = img.size
-    # predict(model, "cuda:0", img, w, h, write_to_file=True)
-    predict_batch(model, "cuda", imgs, filename="preds_batch_test.json", write_to_file=True)
+    predict(model, "cuda:0", img, w, h, write_to_file=True, filename=f"{filename}.json")
+    # predict_batch(model, "cuda", imgs, filename="preds_batch_test.json", write_to_file=True)
     

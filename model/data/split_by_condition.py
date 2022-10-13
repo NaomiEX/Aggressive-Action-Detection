@@ -117,8 +117,8 @@ def split_by_env():
         json.dump(outdoors_anno, wf)
 
 if __name__ == "__main__":
-    # split_by_lighting_cond()
-    split_by_env()
+    split_by_lighting_cond()
+    # split_by_env()
     
     
     
