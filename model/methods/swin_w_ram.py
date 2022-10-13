@@ -827,7 +827,7 @@ class SwinTransformer(nn.Module):
                  ):
         super().__init__()
         
-        print(f"\n WEIGHT STANDARDIZATION ARG IS: {weight_standardization}\n")
+        # print(f"\n WEIGHT STANDARDIZATION ARG IS: {weight_standardization}\n")
 
         self.pretrain_img_size = pretrain_img_size
         self.num_layers = len(depths)

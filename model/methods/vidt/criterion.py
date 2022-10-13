@@ -348,9 +348,9 @@ class SetCriterion(nn.Module):
     def forward(self, outputs, targets, distil_tokens=None):
         """ This performs the loss computation.
         Parameters:
-             outputs: dict of tensors, see the output specification of the model for the format
-             targets: list of dicts, such that len(targets) == batch_size.
-                      The expected keys in each dict depends on the losses applied, see each loss' doc
+            outputs: dict of tensors, see the output specification of the model for the format
+            targets: list of dicts, such that len(targets) == batch_size.
+                    The expected keys in each dict depends on the losses applied, see each loss' doc
             distil_tokens: for token distillation
         """
 

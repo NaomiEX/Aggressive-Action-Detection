@@ -301,7 +301,6 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt2 = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                 reference_points,
                                 src, src_spatial_shapes, level_start_index, src_padding_mask)
-        print(tgt2)
         if sub_reference_points is not None:
             tgt2_sub = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                 sub_reference_points,

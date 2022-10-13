@@ -66,6 +66,9 @@ def test_deform_trans_decoder_layer():
     layer.to('cuda')
     tgt, query_pos, ref_points, src\
             , src_spatial_shapes, level_start_index = create_input()
+    print(src.shape)
+    print(src_spatial_shapes.shape)
+    print(level_start_index.shape)
     out = layer(tgt, query_pos,ref_points,
             src, src_spatial_shapes, level_start_index)
     assert list(out.shape) == list(tgt.shape)
@@ -89,6 +92,7 @@ def test_deform_trans_decoder_layer_small_dmodel():
     out = layer(tgt, query_pos,ref_points,
             src, src_spatial_shapes, level_start_index)
     assert list(out.shape) == list(tgt.shape)
+    print(tgt.shape)
     
 def test_deform_trans_decoder_layer_large_dffn():
     DIM_FFN = 8192
@@ -99,6 +103,7 @@ def test_deform_trans_decoder_layer_large_dffn():
     out = layer(tgt, query_pos,ref_points,
             src, src_spatial_shapes, level_start_index)
     assert list(out.shape) == list(tgt.shape)
+    print(out.shape)
     
 def test_deform_trans_decoder_layer_small_dffn():
     DIM_FFN = 16
@@ -128,6 +133,7 @@ def test_deform_trans_decoder_layer_large_nheads():
     out = layer(tgt, query_pos,ref_points,
             src, src_spatial_shapes, level_start_index)
     assert list(out.shape) == list(tgt.shape)
+    print(out.shape)
     
 def test_deform_trans_decoder_layer_min_nheads():
     

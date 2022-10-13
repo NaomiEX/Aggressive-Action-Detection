@@ -239,7 +239,7 @@ def test_patch_merging_inequal_det_inter_tokens():
     
 def test_patch_merging_indivisible():
     B=4
-    W=49
+    W=47
     H=49
     IN_CHANNELS = 96
     DET_TOKENS=100
@@ -263,16 +263,17 @@ def test_patch_merging_xs():
     out=patch_merging(x, H, W)
     assert list(out.shape) == [B, int(ceil(H/2) * ceil(W/2) + DET_TOKENS + INTER_TOKENS), IN_CHANNELS * 2]
     
-   
-def test_patch_merging_expand(typical_bound_tokens_transformer):
+
+def test_patch_merging_small_nchannels():
     B=4
     W=64
     H=64
-    IN_CHANNELS = 96
+    IN_CHANNELS = 24
     DET_TOKENS=100
     INTER_TOKENS=100
-    FIXED_OUT_CHANNELS=256
-    patch_merging = create_patch_merge(IN_CHANNELS, DET_TOKENS, INTER_TOKENS, expand=False)
-    # x = generate_x((B, H*W + DET_TOKENS + INTER_TOKENS, IN_CHANNELS))
-    out=patch_merging(typical_bound_tokens_transformer, H, W)
-    assert list(out.shape) == [B, int(H/2 * W/2 + DET_TOKENS + INTER_TOKENS), FIXED_OUT_CHANNELS]
+    
+    patch_merging = create_patch_merge(IN_CHANNELS, DET_TOKENS, INTER_TOKENS)
+    x = generate_x((B, H*W + DET_TOKENS + INTER_TOKENS, IN_CHANNELS))
+    out=patch_merging(x, H, W)
+    assert list(out.shape) == [B, int(ceil(H/2) * ceil(W/2) + DET_TOKENS + INTER_TOKENS), IN_CHANNELS * 2]
+    

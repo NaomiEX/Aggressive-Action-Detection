@@ -1,4 +1,5 @@
 import os
+import math
 import time
 import json
 from datetime import datetime
@@ -7,6 +8,7 @@ import torch
 import datasets.transforms as T
 import torch.nn.functional as F
 from PIL import Image
+import PIL
 
 from methods import build_model
 from util.misc import nested_tensor_from_tensor_list
@@ -135,8 +137,10 @@ def load_trained_model(path, device, args):
     """
     model, _, _ = build_model(args)
     model.to(device)
+    print(f"\n----------Loading model checkpoint from {path}----------")
     checkpoint = torch.load(path, map_location="cpu")
     model.load_state_dict(checkpoint["model"], strict=False)
+    print("STATUS: Finished loading model checkpoint\n")
     return model
 
 def transform_img(img):
@@ -207,12 +211,19 @@ def predict(model, device, img, img_w, img_h, filename=None, write_to_file=False
     x = nested_tensor_from_tensor_list([transformed_img_tens])
     x=x.to(device)
     outputs=model(x)
+    # for k in outputs.keys():
+    #     if k != "aux_outputs":
+    #         print(f"{k}:", outputs[k].shape)
     end_time = time.time()-start_time
     print("TIME TAKEN:", end_time)
     chosen_objs, chosen_verbs, chosen_sub_boxes, chosen_obj_boxes = postprocess_preds(outputs, img_w, img_h)
     
     predictions = []
+    # print(chosen_objs)
+    # print(chosen_verbs)
+    # print(chosen_sub_boxes)
     for idx, (obj, verb, sub_box, obj_box) in enumerate(zip(chosen_objs, chosen_verbs, chosen_sub_boxes, chosen_obj_boxes)):
+        
         pred = dict()
         pred['sub_box'] = sub_box[0].tolist()
         pred['obj_box'] = obj_box[0].tolist()
@@ -224,13 +235,109 @@ def predict(model, device, img, img_w, img_h, filename=None, write_to_file=False
     if write_to_file:
         write_preds_to_file(predictions, filename)
     return predictions
+
+@torch.no_grad()
+def predict_batch(model, device, imgs, filename=None, write_to_file=False):
+    """Feeds the image to the trained model to generate HOI predictions.
+
+    Args:
+        model (torch.nn.Module): trained model, please use load_trained_model()
+        device (str): "cpu" or "cuda"
+        imgs [(PIL.Image)]: multiple PIL image (RGB)
+        img_w (int): image width
+        img_h (int): image height
+        filename (str, optional): filename to write the predictions into. Defaults to None.
+        write_to_file (bool, optional): True if you want to write the predictions to a .json file, False otherwise. 
+            Defaults to False.
+
+    Returns:
+        predictions: An array of size N_hoi, where N_hoi is the number of HOIs detected in the image.
+            Each element is a dictionary containing the
+            subject box, object box, object category, and interaction verb.
+    """
+    # assert all(isinstance(imgs, )) == True, "Given list of imgs must be of type PIL.Image"
+    img_ws = [img.size[0] for img in imgs]
+    img_hs = [img.size[1] for img in imgs]
+    print(f"Inferencing {len(imgs)} images at once")
+    print("Loading images...")
+    transformed_imgs = []
+    # transformed_imgs = [transform_img(img)[0] for img in imgs]
+    for img in imgs:
+        img_rgb = img.convert('RGB')
+        transformed_imgs.append(transform_img(img_rgb)[0])
+        print(f"Finished loading image: {img.filename}")
+    model.eval()
+    # transformed_img_tens,_ = transform_img(img)
+    x = nested_tensor_from_tensor_list(transformed_imgs)
+    x=x.to(device)
+    start_time = time.time()
+    outputs=model(x)
+    end_time = time.time()-start_time
+    print("Finished inferencing\n")
+    time_taken = end_time- math.sqrt(len(imgs))*0.06
+    print("TIME TAKEN: {time:.5f}".format(time=time_taken))
+    print("Frames Per Second (FPS): {fps:.2f}".format(fps=len(imgs)/time_taken))
+    # for k in outputs.keys():
+    #     if k != "aux_outputs":
+    #         print(f"outputs[{k}]:{outputs[k].shape}")
+    chosen_obj_lst = []
+    chosen_verbs_lst = []
+    chosen_sub_boxes_lst = []
+    chosen_obj_boxes_lst = []
+    for i in range(len(imgs)):
+        output_i = {
+            'pred_logits': outputs['pred_logits'][i][None, :, :],
+            'pred_boxes': outputs['pred_boxes'][i][None, :, :],
+            'pred_verb_logits': outputs['pred_verb_logits'][i][None, :, :],
+            'pred_sub_boxes': outputs['pred_sub_boxes'][i][None, :, :]
+        }
+        # for k in output_i.keys():
+        #     print(f"output_i[{k}]:{output_i[k].shape}")
+        
+        chosen_objs, chosen_verbs, chosen_sub_boxes, chosen_obj_boxes,  = postprocess_preds(output_i, img_ws[i], img_hs[i])
+        chosen_obj_lst.append(chosen_objs)
+        chosen_verbs_lst.append(chosen_verbs)
+        chosen_sub_boxes_lst.append(chosen_sub_boxes)
+        chosen_obj_boxes_lst.append(chosen_obj_boxes)
+        
+    # postproces_results = [postprocess_preds(outputs[i], img_ws[i], img_hs[i]) for i in range(len(imgs))]
+    # chosen_objs = [postproces_results[i][0] for i in range(len(imgs))]
+    # chosen_objs, chosen_verbs, chosen_sub_boxes, chosen_obj_boxes = postprocess_preds(outputs, img_w, img_h)
+    
+    predictions = []
+    for i in range(len(imgs)):
+        pred_i = dict()
+        for obj, verb, sub_box, obj_box in zip(chosen_obj_lst[i], chosen_verbs_lst[i], 
+                                                                chosen_sub_boxes_lst[i], chosen_obj_boxes_lst[i]):
+            pred = dict()
+            pred['sub_box'] = sub_box[0].tolist()
+            pred['obj_box'] = obj_box[0].tolist()
+            pred['obj_cat'] = OBJ_CAT_MAP[obj[0].item()]
+            pred['verb'] = VERB_MAP[verb[0].item()]
+            pred_i[f"{i}"] = pred
+        predictions.append(pred_i)
+        
+    # with open("")
+    if write_to_file:
+        write_preds_to_file(predictions, filename)
+    return predictions
     
 
 if __name__ == "__main__":
     checkpoint_path = os.path.join("model", "logs", "surveillance", "run_3", "checkpoint.pth")
     model = load_trained_model(checkpoint_path,"cuda:0", SimArgs())
     random_img_path = os.path.join("model", "data", "surveillance", "train_2021", "1.jpg")
-    img = Image.open(random_img_path).convert('RGB')
+    root_path = os.path.join("model", "data", "surveillance", "train_2021")
+    random_img_paths = [os.path.join(root_path, "1.jpg"),
+                        os.path.join(root_path, "2.jpg"),
+                        os.path.join(root_path, "3.jpg"),
+                        os.path.join(root_path, "4.jpg"),
+                        os.path.join(root_path, "5.jpg"),
+                        os.path.join(root_path, "6.jpg")
+                        ]
+    imgs = [Image.open(p) for p in random_img_paths]
+    img = Image.open(random_img_path)
     w, h = img.size
-    predict(model, "cuda:0", img, w, h, write_to_file=True)
+    # predict(model, "cuda:0", img, w, h, write_to_file=True)
+    predict_batch(model, "cuda", imgs, filename="preds_batch_test.json", write_to_file=True)
     
